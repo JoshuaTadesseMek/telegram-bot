@@ -47,7 +47,7 @@ from questionnaire_bot import QuestionnaireBot
 
 ADMIN_TOKEN = "8267449650:AAE70BkJJ5w5j5EbnC45gicwlX4wgCrCElY"
 QUESTIONNAIRE_TOKEN = "8184833822:AAGZGQlNw4RM_VatbeXuvOJrdwZWEgFnylc"
-WEBHOOK_URL ="https://telegram-bot-5.onrender.com"
+WEBHOOK_URL ="https://telegram-bot-5-b4fa.onrender.com"
 
 app = FastAPI()
 
