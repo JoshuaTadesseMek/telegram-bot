@@ -303,34 +303,39 @@ class AdminBot:
         if command == '📊 መረጃ ለማውረድ':
             logger.info("User requested data download")
             file_path = sheet_to_excel_local()
-            
-            if file_path:
-                logger.info(f"Excel file created at {file_path}, attempting to send")
-                try:
-                    with open(file_path, 'rb') as f:
-                        logger.info("File opened successfully, sending to Telegram")
-                        await update.message.reply_document(
-                            document=f,
-                            filename="data.xlsx",
-                            caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
-                        )
-                        logger.info("File sent successfully to Telegram")
-                    
-                    # Clean up after successful send
-                    try:
-                        os.remove(file_path)
-                        logger.info(f"Temporary file {file_path} cleaned up")
-                    except Exception as e:
-                        logger.warning(f"Could not delete temp Excel file: {e}")
-                        
-                except Exception as e:
-                    logger.error(f"Error sending file to Telegram: {e}", exc_info=True)
-                    await update.message.reply_text("❌ ፋይል ለመላክ ስህተት ተፈጥሯል!")
-            else:
-                logger.warning("No Excel file was created")
+            logger.info(f"sheet_to_excel_local returned: {file_path}")
+
+            if not file_path or not os.path.exists(file_path):
+                logger.error("Excel file not created or path invalid")
                 await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+                return ADMIN_MENU
+
+            try:
+                file_size = os.path.getsize(file_path)
+                logger.info(f"Excel file exists: {file_path}, size: {file_size} bytes")
+
+                with open(file_path, 'rb') as f:
+                    logger.info("Sending Excel file to Telegram...")
+                    await update.message.reply_document(
+                        document=f,
+                        filename="data.xlsx",
+                        caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
+                    )
+                    logger.info("Excel file sent successfully")
+
+            except Exception as e:
+                logger.error(f"Error sending Excel file: {e}", exc_info=True)
+                await update.message.reply_text("❌ ፋይል ለመላክ ስህተት ተፈጥሯል!")
+
+            finally:
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Temporary Excel file {file_path} deleted")
+                except Exception as e:
+                    logger.warning(f"Could not delete temp Excel file: {e}")
 
             return ADMIN_MENU
+
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
             keyboard = [
