@@ -26,8 +26,14 @@ def get_client():
 def append_to_sheet(user_id, user_data, ratings):
     client = get_client()
     sheet = client.open_by_key(SHEET_ID).sheet1
-    
-    """Append questionnaire results to Google Sheet"""
+
+    # Ensure headers exist
+    if sheet.row_count == 0 or not sheet.get_all_values():
+        questions = QuestionnaireBot("").load_questions()
+        headers = ["UserID", "Name", "Phone", "Timestamp"] + [f"Q{i+1}" for i in range(len(questions))]
+        sheet.append_row(headers)
+
+    # Now append data row
     row = [
         str(user_id),
         user_data.get("name"),
@@ -35,6 +41,7 @@ def append_to_sheet(user_id, user_data, ratings):
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     ] + ratings
     sheet.append_row(row)
+
 # Load environment variables
 load_dotenv()
 
@@ -49,7 +56,7 @@ logger = logging.getLogger(__name__)
 NAME, PHONE, RATINGS = range(3)
 
 # File paths
-EXCEL_FILE = 'data.xlsx'
+# EXCEL_FILE = 'data.xlsx'
 QUESTIONS_FILE = 'questions.json'
 
 # Emojis for ratings
@@ -61,21 +68,21 @@ class QuestionnaireBot:
         self.token = token
         self.application = Application.builder().token(token).build()
         self.setup_handlers()
-        self.initialize_excel()
+        # self.initialize_excel()
         logger.info("Bot initialized successfully")
 
-    def initialize_excel(self):
-        """Create Excel file with headers if it doesn't exist"""
-        logger.debug("Checking if Excel file exists...")
-        if not os.path.exists(EXCEL_FILE):
-            df = pd.DataFrame(columns=['UserID', 'Name', 'Phone', 'Timestamp'])
-            questions = self.load_questions()
-            for i, _ in enumerate(questions):
-                df[f'Q{i+1}'] = None
-            df.to_excel(EXCEL_FILE, index=False)
-            logger.info("Excel file created with headers")
-        else:
-            logger.debug("Excel file already exists")
+    # def initialize_excel(self):
+    #     """Create Excel file with headers if it doesn't exist"""
+    #     logger.debug("Checking if Excel file exists...")
+    #     if not os.path.exists(EXCEL_FILE):
+    #         df = pd.DataFrame(columns=['UserID', 'Name', 'Phone', 'Timestamp'])
+    #         questions = self.load_questions()
+    #         for i, _ in enumerate(questions):
+    #             df[f'Q{i+1}'] = None
+    #         df.to_excel(EXCEL_FILE, index=False)
+    #         logger.info("Excel file created with headers")
+    #     else:
+    #         logger.debug("Excel file already exists")
 
     def load_questions(self):
         """Load questions from JSON file"""
@@ -90,42 +97,64 @@ class QuestionnaireBot:
             logger.error(f"Error loading questions: {e}")
             return []
 
+    # def has_user_submitted(self, user_id):
+    #     try:
+    #         if not os.path.exists(EXCEL_FILE):
+    #             return False
+    #         df = pd.read_excel(EXCEL_FILE)
+    #         if "UserID" not in df.columns:
+    #             return False
+    #         df["UserID"] = df["UserID"].apply(lambda x: int(x) if pd.notnull(x) else 0)
+    #         return int(user_id) in df["UserID"].values
+    #     except Exception as e:
+    #         logger.error(f"Error checking user submission: {e}")
+    #         return False
     def has_user_submitted(self, user_id):
+        """Check in Google Sheet if user already submitted"""
         try:
-            if not os.path.exists(EXCEL_FILE):
+            client = get_client()
+            sheet = client.open_by_key(SHEET_ID).sheet1
+            data = sheet.get_all_records()  # list of dicts with headers as keys
+
+            # If no data yet, user hasn't submitted
+            if not data:
                 return False
-            df = pd.read_excel(EXCEL_FILE)
-            if "UserID" not in df.columns:
-                return False
-            df["UserID"] = df["UserID"].apply(lambda x: int(x) if pd.notnull(x) else 0)
-            return int(user_id) in df["UserID"].values
+
+            # Check UserID column
+            for row in data:
+                if str(row.get("UserID")) == str(user_id):
+                    return True
+
+            return False
+
         except Exception as e:
-            logger.error(f"Error checking user submission: {e}")
+            logger.error(f"Error checking user submission in Google Sheet: {e}")
             return False
 
 
-    def save_to_excel(self, user_id: int, user_data: dict, ratings: list):
-        """Save user data and ratings to Excel file"""
-        logger.debug("Saving data to Excel...")
-        try:
-            df = pd.read_excel(EXCEL_FILE)
 
-            new_row = {
-                'UserID': str(user_id),
-                'Name': user_data.get('name'),
-                'Phone': user_data.get('phone'),
-                'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
+    # def save_to_excel(self, user_id: int, user_data: dict, ratings: list):
+    #     """Save user data and ratings to Excel file"""
+    #     logger.debug("Saving data to Excel...")
+    #     try:
+    #         df = pd.read_excel(EXCEL_FILE)
 
-            for i, rating in enumerate(ratings):
-                new_row[f'Q{i+1}'] = rating
+    #         new_row = {
+    #             'UserID': str(user_id),
+    #             'Name': user_data.get('name'),
+    #             'Phone': user_data.get('phone'),
+    #             'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #         }
 
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_excel(EXCEL_FILE, index=False)
-            logger.info(f"Saved new row for user {user_id}")
+    #         for i, rating in enumerate(ratings):
+    #             new_row[f'Q{i+1}'] = rating
 
-        except Exception as e:
-            logger.error(f"Error saving to Excel: {e}")
+    #         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    #         df.to_excel(EXCEL_FILE, index=False)
+    #         logger.info(f"Saved new row for user {user_id}")
+
+    #     except Exception as e:
+    #         logger.error(f"Error saving to Excel: {e}")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start the bot"""
