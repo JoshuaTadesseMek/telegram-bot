@@ -1,6 +1,8 @@
 import os
 import logging
 import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 import json
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -10,6 +12,17 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from datetime import datetime
 
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+CREDS_FILE = "reflected-cycle-448109-p5-65cedb726569.json"
+SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
+
+def append_to_sheet(user_id, user_data, ratings):
+    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SHEET_ID).sheet1
+
+    row = [str(user_id), user_data.get("name"), user_data.get("phone"), datetime.now().strftime("%Y-%m-%d %H:%M:%S")] + ratings
+    sheet.append_row(row)
 # Load environment variables
 load_dotenv()
 
@@ -194,7 +207,7 @@ class QuestionnaireBot:
         current_q = context.user_data['current_question']
 
         if current_q >= len(questions):
-            self.save_to_excel(
+            append_to_sheet(
                 context.user_data["user_id"],
                 context.user_data,
                 context.user_data['ratings']

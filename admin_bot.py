@@ -2,6 +2,8 @@ import os
 import logging
 import pandas as pd
 import json
+from google.oauth2.service_account import Credentials
+import gspread
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters,
@@ -27,6 +29,25 @@ AUTHENTICATE, ADMIN_MENU, EDIT_QUESTIONS, NEW_QUESTION = range(4)
 EXCEL_FILE = 'data.xlsx'
 QUESTIONS_FILE = 'questions.json'
 ADMIN_USERS_FILE = 'admin_users.json'
+
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+CREDS_FILE = "reflected-cycle-448109-p5-65cedb726569.json"  # put your downloaded JSON file in the bot folder
+SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
+
+def sheet_to_excel():
+    """Fetch all rows from Google Sheet and save locally as data.xlsx"""
+    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SHEET_ID).sheet1
+
+    data = sheet.get_all_records()  # returns list of dicts
+    df = pd.DataFrame(data)
+
+    if df.empty:
+        return False  # no data
+
+    df.to_excel(EXCEL_FILE, index=False)
+    return True
 
 class AdminBot:
     def __init__(self, token):
@@ -179,13 +200,15 @@ class AdminBot:
         command = update.message.text
 
         if command == '📊 ውሂብ አውርድ':
-            if os.path.exists(EXCEL_FILE):
+            success = sheet_to_excel()
+            if success:
                 await update.message.reply_document(
                     document=open(EXCEL_FILE, 'rb'),
-                    caption="📊 የተሰበሰበ መረጃ"
+                    caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
                 )
             else:
-                await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
+                await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+
             return ADMIN_MENU
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
