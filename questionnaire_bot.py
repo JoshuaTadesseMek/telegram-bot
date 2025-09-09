@@ -22,6 +22,9 @@ def get_client():
     client = gspread.authorize(credentials)
     return client
 
+def load_questions_from_file():
+    with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 def append_to_sheet(user_id, user_data, ratings):
     client = get_client()
@@ -32,7 +35,7 @@ def append_to_sheet(user_id, user_data, ratings):
 
     if not first_row or first_row[0] != "UserID":
         # Reset headers at row 1
-        questions = QuestionnaireBot("").load_questions()
+        questions = load_questions_from_file()
         headers = ["UserID", "Name", "Phone", "Timestamp"] + [f"Q{i+1}" for i in range(len(questions))]
 
         if first_row:
@@ -51,7 +54,6 @@ def append_to_sheet(user_id, user_data, ratings):
     ] + ratings
 
     sheet.append_row(row)
-
 
 # Load environment variables
 load_dotenv()
