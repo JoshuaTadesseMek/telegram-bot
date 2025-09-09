@@ -120,7 +120,7 @@ class AdminBot:
         welcome_text = (
             "👋 እንኳን ደህና መጡ!\n\n"
             "ይህ የአስተዳዳሪ ቦት ነው። የተጠቃሚዎችን መረጃ ለማስተዳደር እና ጥያቄዎችን ለመቀየር ያገለግላል።\n\n"
-            "ለመጠቀም /login የሚለውን ይጠቀሙ።"
+            "ለመጠቀም /login የሚለውን ይጫኑ ወይም ይጻፉ።"
         )
         await update.message.reply_text(welcome_text)
 
@@ -160,7 +160,7 @@ class AdminBot:
 
     async def show_admin_panel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show admin panel"""
-        keyboard = [['📊 ውሂብ አውርድ', '❓ ጥያቄዎችን አሻሽል', '📊 የውሂብ ስታቲስቲክስ']]
+        keyboard = [['📊  መረጃ ለማውረድ', '❓ ጥያቄዎችን ለማሻሻል', '📊 የመረጃ ስታቲስቲክስ']]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
 
         await update.message.reply_text(
@@ -182,13 +182,13 @@ class AdminBot:
             if os.path.exists(EXCEL_FILE):
                 await update.message.reply_document(
                     document=open(EXCEL_FILE, 'rb'),
-                    caption="📊 የተሰበሰበ ውሂብ"
+                    caption="📊 የተሰበሰበ መረጃ"
                 )
             else:
-                await update.message.reply_text("❌ አስካሁን ምንም ውሂብ አልተሰበሰበም!")
+                await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
             return ADMIN_MENU
 
-        elif command == '❓ ጥያቄዎችን አሻሽል':
+        elif command == '❓ ጥያቄዎችን ለማሻሻል':
             keyboard = [
                 ['👀 ጥያቄዎችን ለመመልከት', '➕ ጥያቄ ለመጨመር'],
                 ['✏️ ጥያቄ ለመቀየር', '🗑️ ጥያቄ ለመሰረዝ'],
@@ -202,20 +202,20 @@ class AdminBot:
             )
             return EDIT_QUESTIONS
 
-        elif command == '📊 የውሂብ ስታቲስቲክስ':
+        elif command == '📊 የመረጃ ስታቲስቲክስ':
             try:
                 if not os.path.exists(EXCEL_FILE):
-                    await update.message.reply_text("❌ አስካሁን ምንም ውሂብ አልተሰበሰበም!")
+                    await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
                     return ADMIN_MENU
 
                 df = pd.read_excel(EXCEL_FILE)
                 total_submissions = len(df)
 
                 if total_submissions == 0:
-                    await update.message.reply_text("❌ አስካሁን ምንም ውሂብ አልተሰበሰበም!")
+                    await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
                     return ADMIN_MENU
 
-                stats_text = f"📊 የውሂብ ስታቲስቲክስ:\n\n"
+                stats_text = f"📊 የመረጃ ስታቲስቲክስ:\n\n"
                 stats_text += f"📝 አጠቃላይ መረጃዎች: {total_submissions}\n\n"
 
                 questions = self.load_questions()
@@ -232,7 +232,7 @@ class AdminBot:
 
             except Exception as e:
                 logger.error(f"Error generating statistics: {e}")
-                await update.message.reply_text("❌ የውሂብ ስታቲስቲክስ ለማውጣት አልተቻለም!")
+                await update.message.reply_text("❌ የመረጃ ስታቲስቲክስ ለማውጣት አልተቻለም!")
             return ADMIN_MENU
 
         # Default: stay in menu
@@ -253,7 +253,7 @@ class AdminBot:
             if not questions:
                 await update.message.reply_text("❌ ምንም ጥያቄዎች አልተገኙም!")
             else:
-                questions_text = "📋 የአሁኑ ጥያቄዎች:\n\n"
+                questions_text = "📋 ሁሉም ጥያቄዎች:\n\n"
                 for i, q in enumerate(questions):
                     questions_text += f"{i+1}. {q}\n"
                 await update.message.reply_text(questions_text)
@@ -314,7 +314,7 @@ class AdminBot:
             return ADMIN_MENU
 
         else:
-            await update.message.reply_text("❗ ያስመረጡት አማራጭ አይታወቅም።")
+            await update.message.reply_text("❗ የመረጡት አማራጭ አይታወቅም።")
             return EDIT_QUESTIONS
 
     async def handle_callback_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -364,7 +364,7 @@ class AdminBot:
                         f"✅ ጥያቄ ተሰርዟል:\n\n{deleted_question}"
                     )
                 else:
-                    await query.edit_message_text("❌ ጥያቄ ለመሰረዝ ስህተት ተፈጥሯል!")
+                    await query.edit_message_text("❌ ጥያቄ ሲሰረዝ ስህተት ተፈጥሯል!")
             else:
                 await query.edit_message_text("❌ ልክ ያልሆነ ጥያቄ መረጃ!")
             return await self.return_to_question_management(update, context)
@@ -410,7 +410,7 @@ class AdminBot:
             if self.save_questions(questions):
                 await update.message.reply_text("✅ አዲስ ጥያቄ ታክሏል!")
             else:
-                await update.message.reply_text("❌ ጥያቄ ለመጨመር ስህተት ተፈጥሯል!")
+                await update.message.reply_text("❌ ጥያቄ ሲጨመር ስህተት ተፈጥሯል!")
 
         elif editing_mode == 'edit':
             index = context.user_data.get('editing_index')
@@ -424,7 +424,7 @@ class AdminBot:
                         f"ወደ: {new_question}"
                     )
                 else:
-                    await update.message.reply_text("❌ ጥያቄ ለመቀየር ስህተት ተፈጥሯል!")
+                    await update.message.reply_text("❌ ጥያቄ ሲቀየር ስህተት ተፈጥሯል!")
             else:
                 await update.message.reply_text("❌ ልክ ያልሆነ ጥያቄ መረጃ!")
 
@@ -454,7 +454,7 @@ class AdminBot:
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.authenticate),
                 ],
                 ADMIN_MENU: [
-                    MessageHandler(filters.Regex('^(📊 ውሂብ አውርድ|❓ ጥያቄዎችን አሻሽል|📊 የውሂብ ስታቲስቲክስ)$'), self.admin_panel),
+                    MessageHandler(filters.Regex('^(📊 መረጃ ለማውረድ|❓ ጥያቄዎችን ለማሻሻል|📊 የመረጃ ስታቲስቲክስ)$'), self.admin_panel),
                 ],
                 EDIT_QUESTIONS: [
                     MessageHandler(filters.Regex('^(👀 ጥያቄዎችን ለመመልከት|➕ ጥያቄ ለመጨመር|✏️ ጥያቄ ለመቀየር|🗑️ ጥያቄ ለመሰረዝ|↩️ ወደ ኋላ)$'), self.edit_questions),

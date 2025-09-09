@@ -109,7 +109,7 @@ class QuestionnaireBot:
 
         if self.has_user_submitted(user.id):
             await update.message.reply_text(
-                "🙏 አመሰግናለሁ! አስቀድሞ ፎርም አጭተሻል። አዲስ ፎርም ማምላክ አይቻልም.",
+                "🙏 ይቅርታ! አስቀድመው ይህን ቃለ-መጠይቅ ሞልተዋል።",
                 reply_markup=ReplyKeyboardRemove()
             )
             logger.debug(f"User {user.id} blocked from resubmitting")
@@ -131,7 +131,7 @@ class QuestionnaireBot:
 
         if self.has_user_submitted(user.id):
             await update.message.reply_text(
-                "🙏 አመሰግናለሁ! አስቀድሞ ፎርም አጭተሻል።",
+                "🙏 ይቅርታ! አስቀድመው ይህን ቃለ-መጠይቅ ሞልተዋል።",
                 reply_markup=ReplyKeyboardRemove()
             )
             logger.debug(f"User {user.id} already submitted, blocking")
@@ -200,7 +200,7 @@ class QuestionnaireBot:
                 context.user_data['ratings']
             )
             await update.message.reply_text(
-                "✅ አመሰግናለሁ! መረጃዎ ተቀብሏል። 🎉",
+                "✅ እናመሰግናለን! ቃለ-መጠይቁን ጨርሰዋል። መረጃዎንም ተቀብለናል። 🎉",
                 reply_markup=ReplyKeyboardRemove()
             )
             logger.debug(f"Form completed for user {context.user_data['user_id']}")
@@ -223,7 +223,7 @@ class QuestionnaireBot:
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.debug("Form cancelled by user")
         await update.message.reply_text(
-            "❌ ፎርም ተቋርጧል።",
+            "❌ ቃለ-መጠይቁ ተቋርጧል።",
             reply_markup=ReplyKeyboardRemove()
         )
         context.user_data.clear()
