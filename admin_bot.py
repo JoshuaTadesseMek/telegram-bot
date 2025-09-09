@@ -40,16 +40,36 @@ credentials = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
 client = gspread.authorize(credentials)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
+def get_client():
+    """Authorize and return Google Sheets client"""
+    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+    return gspread.authorize(creds)
+
+
 def sheet_to_excel():
     """Fetch all rows from Google Sheet and save locally as data.xlsx"""
-    data = sheet.get_all_records()  # returns list of dicts
+    client = get_client()
+    sheet = client.open_by_key(SHEET_ID).sheet1
+
+    data = sheet.get_all_records()
     df = pd.DataFrame(data)
 
     if df.empty:
-        return False  # no data
+        return False
 
     df.to_excel(EXCEL_FILE, index=False)
     return True
+
+
+def get_dataframe():
+    """Fetch fresh dataframe directly from Google Sheets (no Excel needed)"""
+    client = get_client()
+    sheet = client.open_by_key(SHEET_ID).sheet1
+
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    return df
+
 
 class AdminBot:
     def __init__(self, token):
@@ -229,17 +249,12 @@ class AdminBot:
 
         elif command == '📊 የመረጃ ስታቲስቲክስ':
             try:
-                if not os.path.exists(EXCEL_FILE):
+                df = get_dataframe()
+                if df.empty:
                     await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
                     return ADMIN_MENU
 
-                df = pd.read_excel(EXCEL_FILE)
                 total_submissions = len(df)
-
-                if total_submissions == 0:
-                    await update.message.reply_text("❌ አስካሁን ምንም መረጃ አልተሰበሰበም!")
-                    return ADMIN_MENU
-
                 stats_text = f"📊 የመረጃ ስታቲስቲክስ:\n\n"
                 stats_text += f"📝 አጠቃላይ መረጃዎች: {total_submissions}\n\n"
 
@@ -259,6 +274,7 @@ class AdminBot:
                 logger.error(f"Error generating statistics: {e}")
                 await update.message.reply_text("❌ የመረጃ ስታቲስቲክስ ለማውጣት አልተቻለም!")
             return ADMIN_MENU
+
 
         # Default: stay in menu
         await self.show_admin_panel(update, context)
