@@ -282,7 +282,7 @@ class AdminBot:
 
     async def show_admin_panel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show admin panel"""
-        keyboard = [['📊  መረጃ ለማውረድ', '❓ ጥያቄዎችን ለማሻሻል', '📊 የመረጃ ስታቲስቲክስ']]
+        keyboard = [['📊 መረጃ ለማውረድ', '❓ ጥያቄዎችን ለማሻሻል', '📊 የመረጃ ስታቲስቲክስ']]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=False, resize_keyboard=True)
 
         await update.message.reply_text(
