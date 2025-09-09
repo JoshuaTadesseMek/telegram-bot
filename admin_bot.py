@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import io
 import tempfile
+import contextlib
 
 # Load environment variables
 load_dotenv()
@@ -41,6 +42,25 @@ CREDS_FILE = "/etc/secrets/reflected-cycle-448109-p5-65cedb726569.json"
 credentials = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
 client = gspread.authorize(credentials)
 sheet = client.open_by_key(SHEET_ID).sheet1
+
+
+@contextlib.contextmanager
+def get_excel_file():
+    """Context manager that yields a temporary Excel file and cleans it up afterwards."""
+    file_path = None
+    try:
+        file_path = sheet_to_excel_local()
+        if file_path and os.path.exists(file_path):
+            yield file_path
+        else:
+            yield None
+    finally:
+        # Clean up: this runs AFTER the 'with' block is done
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                logger.warning(f"Could not delete temp Excel file: {e}")
 
 def get_client():
     """Authorize and return Google Sheets client"""
@@ -244,25 +264,18 @@ class AdminBot:
         command = update.message.text
 
         if command == '📊 መረጃ ለማውረድ':
-            file_path = sheet_to_excel_local()
-            if file_path:
-                with open(file_path, 'rb') as f:
-                    await update.message.reply_document(
-                        document=f,
-                        filename="data.xlsx",
-                        caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
-                    )
-                # Optional: remove the temp file after sending
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    logger.warning(f"Could not delete temp Excel file: {e}")
-            else:
-                await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
-
+            with get_excel_file() as file_path:
+                if file_path:
+                    with open(file_path, 'rb') as f:
+                        await update.message.reply_document(
+                            document=f,
+                            filename="data.xlsx",
+                            caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
+                        )
+                else:
+                    await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+            # File is automatically deleted here by the context manager
             return ADMIN_MENU
-
-
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
             keyboard = [
