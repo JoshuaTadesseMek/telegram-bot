@@ -13,15 +13,30 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDS_FILE = "reflected-cycle-448109-p5-65cedb726569.json"
 SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
+# Load the JSON content from environment
+creds_json = os.environ.get("reflected-cycle-448109-p5-65cedb726569")
+if not creds_json:
+    raise ValueError("reflected-cycle-448109-p5-65cedb726569 not found in environment variables")
+
+# Parse the JSON string into a dict
+creds_dict = json.loads(creds_json)
+
+# Create Credentials object
+credentials = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+
+# Authorize client once (reuse this for all sheet operations)
+client = gspread.authorize(credentials)
+sheet = client.open_by_key(SHEET_ID).sheet1
 
 def append_to_sheet(user_id, user_data, ratings):
-    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID).sheet1
-
-    row = [str(user_id), user_data.get("name"), user_data.get("phone"), datetime.now().strftime("%Y-%m-%d %H:%M:%S")] + ratings
+    """Append questionnaire results to Google Sheet"""
+    row = [
+        str(user_id),
+        user_data.get("name"),
+        user_data.get("phone"),
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    ] + ratings
     sheet.append_row(row)
 # Load environment variables
 load_dotenv()

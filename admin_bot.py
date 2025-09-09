@@ -31,15 +31,23 @@ QUESTIONS_FILE = 'questions.json'
 ADMIN_USERS_FILE = 'admin_users.json'
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-CREDS_FILE = "reflected-cycle-448109-p5-65cedb726569.json"  # put your downloaded JSON file in the bot folder
 SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
+
+# Load credentials from Render secret
+creds_json = os.environ.get("reflected-cycle-448109-p5-65cedb726569.json")  # 👈 match the env var name in Render
+if not creds_json:
+    raise ValueError("reflected-cycle-448109-p5-65cedb726569.json not found in environment variables")
+
+creds_dict = json.loads(creds_json)
+credentials = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+
+# Reuse gspread client
+client = gspread.authorize(credentials)
+sheet = client.open_by_key(SHEET_ID).sheet1
+
 
 def sheet_to_excel():
     """Fetch all rows from Google Sheet and save locally as data.xlsx"""
-    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
-    client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID).sheet1
-
     data = sheet.get_all_records()  # returns list of dicts
     df = pd.DataFrame(data)
 
