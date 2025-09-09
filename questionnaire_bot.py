@@ -27,20 +27,31 @@ def append_to_sheet(user_id, user_data, ratings):
     client = get_client()
     sheet = client.open_by_key(SHEET_ID).sheet1
 
-    # Ensure headers exist
-    if sheet.row_count == 0 or not sheet.get_all_values():
+    # Always check the first row
+    first_row = sheet.row_values(1)
+
+    if not first_row or first_row[0] != "UserID":
+        # Reset headers at row 1
         questions = QuestionnaireBot("").load_questions()
         headers = ["UserID", "Name", "Phone", "Timestamp"] + [f"Q{i+1}" for i in range(len(questions))]
-        sheet.append_row(headers)
 
-    # Now append data row
+        if first_row:
+            # If data already exists in row 1, insert a new row above it
+            sheet.insert_row(headers, 1)
+        else:
+            # If sheet is empty, just set headers
+            sheet.append_row(headers)
+
+    # Append the new submission
     row = [
         str(user_id),
         user_data.get("name"),
         user_data.get("phone"),
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     ] + ratings
+
     sheet.append_row(row)
+
 
 # Load environment variables
 load_dotenv()
