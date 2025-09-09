@@ -14,22 +14,19 @@ from datetime import datetime
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
-# Load the JSON content from environment
-creds_json = os.environ.get("reflected-cycle-448109-p5-65cedb726569")
-if not creds_json:
-    raise ValueError("reflected-cycle-448109-p5-65cedb726569 not found in environment variables")
+CREDS_FILE = "/etc/secrets/reflected-cycle-448109-p5-65cedb726569.json"
 
-# Parse the JSON string into a dict
-creds_dict = json.loads(creds_json)
+def get_client():
+    """Authorize Google Sheets client from secret file"""
+    credentials = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+    client = gspread.authorize(credentials)
+    return client
 
-# Create Credentials object
-credentials = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-
-# Authorize client once (reuse this for all sheet operations)
-client = gspread.authorize(credentials)
-sheet = client.open_by_key(SHEET_ID).sheet1
 
 def append_to_sheet(user_id, user_data, ratings):
+    client = get_client()
+    sheet = client.open_by_key(SHEET_ID).sheet1
+    
     """Append questionnaire results to Google Sheet"""
     row = [
         str(user_id),
