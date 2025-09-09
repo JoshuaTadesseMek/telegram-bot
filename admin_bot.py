@@ -587,6 +587,7 @@ class AdminBot:
 
     def setup_handlers(self):
         """Setup all handlers"""
+        logger.info("Setting up bot handlers")
         admin_conv_handler = ConversationHandler(
             entry_points=[CommandHandler('login', self.login)],
             states={
@@ -610,9 +611,27 @@ class AdminBot:
 
         self.application.add_handler(admin_conv_handler)
         self.application.add_handler(CommandHandler('start', self.start))
-        # IMPORTANT: No global MessageHandler for admin menu buttons here (prevents hijacking)
-        # Also no global CallbackQueryHandler; it's handled inside EDIT_QUESTIONS state.
+        # ADD THIS: Handler for admin menu buttons outside conversation
+        self.application.add_handler(MessageHandler(
+            filters.Regex('^(📊 መረጃ ለማውረድ|❓ ጥያቄዎችን ለማሻሻል|📊 የመረጃ ስታቲስቲክስ)$') & ~filters.COMMAND,
+            self.admin_panel_fallback
+        ))
+        
+        logger.info("Handlers setup completed")
 
+    async def admin_panel_fallback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle admin panel buttons when not in conversation"""
+        user = update.message.from_user
+        logger.info(f"Fallback handler for admin command: {update.message.text} from user {user.id}")
+        
+        if not self.is_user_admin(user):
+            await update.message.reply_text("❌ አስተዳዳሪ መሆን አይችሉም! እባክዎ /login ይጠቀሙ።")
+            return
+        
+        # Start conversation and handle the command
+        await self.show_admin_panel(update, context)
+        return await self.admin_panel(update, context)
+    
     def run(self):
         """Run the bot"""
         print("Admin Bot is running... Press Ctrl+C to stop.")
