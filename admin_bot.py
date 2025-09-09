@@ -12,6 +12,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from datetime import datetime
 import io
+import tempfile
 
 # Load environment variables
 load_dotenv()
@@ -61,8 +62,8 @@ def sheet_to_excel():
     df.to_excel(EXCEL_FILE, index=False)
     return True
 
-def sheet_to_excel_bytes():
-    """Return Google Sheet as Excel bytes (in memory)"""
+def sheet_to_excel_local():
+    """Fetch Google Sheet and save as a local Excel file. Returns file path or None."""
     try:
         client = get_client()
         sheet = client.open_by_key(SHEET_ID).sheet1
@@ -72,13 +73,15 @@ def sheet_to_excel_bytes():
         if df.empty:
             return None
 
-        output = io.BytesIO()
-        df.to_excel(output, index=False)
-        output.seek(0)
-        return output
+        # Use a temporary file
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, "data.xlsx")
+        df.to_excel(file_path, index=False)
+        return file_path
+
     except Exception as e:
-        logger.error(f"Error generating Excel bytes: {e}")
-        return None
+        logger.error(f"Error generating local Excel file: {e}")
+        return None 
     
 def get_dataframe():
     """Fetch fresh dataframe directly from Google Sheets (no Excel needed)"""
@@ -241,16 +244,24 @@ class AdminBot:
         command = update.message.text
 
         if command == '📊 መረጃ ለማውረድ':
-            excel_bytes = sheet_to_excel_bytes()
-            if excel_bytes:
-                await update.message.reply_document(
-                    document=excel_bytes,
-                    filename="data.xlsx",
-                    caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
-                )
+            file_path = sheet_to_excel_local()
+            if file_path:
+                with open(file_path, 'rb') as f:
+                    await update.message.reply_document(
+                        document=f,
+                        filename="data.xlsx",
+                        caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
+                    )
+                # Optional: remove the temp file after sending
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    logger.warning(f"Could not delete temp Excel file: {e}")
             else:
                 await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+
             return ADMIN_MENU
+
 
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
