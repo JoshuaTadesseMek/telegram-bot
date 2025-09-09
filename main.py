@@ -44,6 +44,7 @@ import os
 from fastapi import FastAPI, Request
 from admin_bot import AdminBot
 from questionnaire_bot import QuestionnaireBot
+from telegram import Update
 
 ADMIN_TOKEN = "8267449650:AAE70BkJJ5w5j5EbnC45gicwlX4wgCrCElY"
 QUESTIONNAIRE_TOKEN = "8184833822:AAGZGQlNw4RM_VatbeXuvOJrdwZWEgFnylc"
@@ -52,28 +53,37 @@ WEBHOOK_URL ="https://telegram-bot-5-b4fa.onrender.com"
 app = FastAPI()
 
 # Create bot applications
-admin_app = AdminBot(ADMIN_TOKEN).application
-questionnaire_app = QuestionnaireBot(QUESTIONNAIRE_TOKEN).application
+admin_bot = AdminBot(ADMIN_TOKEN).application
+questionnaire_bot = QuestionnaireBot(QUESTIONNAIRE_TOKEN).application
 
 
 @app.on_event("startup")
-async def on_startup():
-    # Set webhooks for both bots
-    await admin_app.bot.set_webhook(f"{WEBHOOK_URL}/admin")
-    await questionnaire_app.bot.set_webhook(f"{WEBHOOK_URL}/questionnaire")
+async def startup_event():
+    # Initialize and start both applications
+    await admin_bot.initialize()
+    await questionnaire_bot.initialize()
+
+    await admin_bot.start()
+    await questionnaire_bot.start()
+
+    # Set webhooks
+    await admin_bot.bot.set_webhook(f"{WEBHOOK_URL}/admin")
+    await questionnaire_bot.bot.set_webhook(f"{WEBHOOK_URL}/questionnaire")
 
 
 @app.post("/admin")
 async def webhook_admin(request: Request):
-    update = await request.json()
-    await admin_app.update_queue.put(update)
+    data = await request.json()
+    update = Update.de_json(data, admin_bot.bot)
+    await admin_bot.process_update(update)
     return {"ok": True}
 
 
 @app.post("/questionnaire")
 async def webhook_questionnaire(request: Request):
-    update = await request.json()
-    await questionnaire_app.update_queue.put(update)
+    data = await request.json()
+    update = Update.de_json(data, questionnaire_bot.bot)
+    await questionnaire_bot.process_update(update)
     return {"ok": True}
 
 
