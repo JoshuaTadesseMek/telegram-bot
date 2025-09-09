@@ -61,7 +61,25 @@ def sheet_to_excel():
     df.to_excel(EXCEL_FILE, index=False)
     return True
 
+def sheet_to_excel_bytes():
+    """Return Google Sheet as Excel bytes (in memory)"""
+    try:
+        client = get_client()
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
 
+        if df.empty:
+            return None
+
+        output = io.BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)
+        return output
+    except Exception as e:
+        logger.error(f"Error generating Excel bytes: {e}")
+        return None
+    
 def get_dataframe():
     """Fetch fresh dataframe directly from Google Sheets (no Excel needed)"""
     client = get_client()
@@ -222,30 +240,18 @@ class AdminBot:
 
         command = update.message.text
 
-        if command == '📊 ውሂብ አውርድ':
-            try:
-                df = get_dataframe()
-                if df.empty:
-                    await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
-                    return ADMIN_MENU
-
-                # Create an in-memory Excel file
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Sheet1')
-                output.seek(0)
-
+        if command == '📊 መረጃ ለማውረድ':
+            excel_bytes = sheet_to_excel_bytes()
+            if excel_bytes:
                 await update.message.reply_document(
-                    document=output,
-                    filename="GoogleSheetData.xlsx",
+                    document=excel_bytes,
+                    filename="data.xlsx",
                     caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
                 )
-
-            except Exception as e:
-                logger.error(f"Error sending Excel file: {e}")
-                await update.message.reply_text("❌ አንድ ስህተት ተፈጥሯል የመረጃ ኤክሴል ለማስተዋወቅ!")
-
+            else:
+                await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
             return ADMIN_MENU
+
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
             keyboard = [
