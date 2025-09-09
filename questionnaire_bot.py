@@ -24,7 +24,9 @@ def get_client():
 
 def load_questions_from_file():
     with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+        return data.get("questions", [])
+
 
 def append_to_sheet(user_id, user_data, ratings):
     client = get_client()

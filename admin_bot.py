@@ -11,6 +11,7 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 from datetime import datetime
+import io
 
 # Load environment variables
 load_dotenv()
@@ -222,14 +223,27 @@ class AdminBot:
         command = update.message.text
 
         if command == '📊 ውሂብ አውርድ':
-            success = sheet_to_excel()
-            if success:
+            try:
+                df = get_dataframe()
+                if df.empty:
+                    await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+                    return ADMIN_MENU
+
+                # Create an in-memory Excel file
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Sheet1')
+                output.seek(0)
+
                 await update.message.reply_document(
-                    document=open(EXCEL_FILE, 'rb'),
+                    document=output,
+                    filename="GoogleSheetData.xlsx",
                     caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
                 )
-            else:
-                await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+
+            except Exception as e:
+                logger.error(f"Error sending Excel file: {e}")
+                await update.message.reply_text("❌ አንድ ስህተት ተፈጥሯል የመረጃ ኤክሴል ለማስተዋወቅ!")
 
             return ADMIN_MENU
 
