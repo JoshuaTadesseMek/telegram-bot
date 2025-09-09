@@ -476,7 +476,8 @@ class AdminBot:
     def run(self):
         """Run the bot"""
         print("Admin Bot is running... Press Ctrl+C to stop.")
-        self.application.run_polling()
+        # self.application.run_polling()
+        return self.application
 
 def main():
     bot_token = os.getenv('ADMIN_BOT_TOKEN')
@@ -484,7 +485,8 @@ def main():
         logger.error("ADMIN_BOT_TOKEN not found in environment variables")
         return
     bot = AdminBot(bot_token)
-    bot.run()
+    # bot.run()
+    return bot.application
 
 if __name__ == '__main__':
     main()

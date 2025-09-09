@@ -244,7 +244,8 @@ class QuestionnaireBot:
 
     def run(self):
         print("🚀 Questionnaire Bot is running...")
-        self.application.run_polling()
+        # self.application.run_polling()
+        return self.application
 
 
 def main():
@@ -254,7 +255,8 @@ def main():
         return
     logger.info(f"Using bot token: {token[:6]}... (hidden for security)")
     bot = QuestionnaireBot(token)
-    bot.run()
+    # bot.run()
+    return bot.application
 
 
 if __name__ == '__main__':
