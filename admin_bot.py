@@ -64,53 +64,90 @@ def get_excel_file():
 
 def get_client():
     """Authorize and return Google Sheets client"""
-    creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
-    return gspread.authorize(creds)
-
-
-def sheet_to_excel():
-    """Fetch all rows from Google Sheet and save locally as data.xlsx"""
-    client = get_client()
-    sheet = client.open_by_key(SHEET_ID).sheet1
-
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
-
-    if df.empty:
-        return False
-
-    df.to_excel(EXCEL_FILE, index=False)
-    return True
+    try:
+        logger.info(f"Attempting to authorize with credentials file: {CREDS_FILE}")
+        if not os.path.exists(CREDS_FILE):
+            logger.error(f"Credentials file not found at: {CREDS_FILE}")
+            return None
+            
+        creds = Credentials.from_service_account_file(CREDS_FILE, scopes=SCOPES)
+        client = gspread.authorize(creds)
+        logger.info("Google Sheets client authorized successfully")
+        return client
+    except Exception as e:
+        logger.error(f"Error authorizing Google Sheets client: {e}")
+        return None
 
 def sheet_to_excel_local():
     """Fetch Google Sheet and save as a local Excel file. Returns file path or None."""
     try:
+        logger.info("Starting sheet_to_excel_local process")
+        
         client = get_client()
+        if not client:
+            logger.error("Failed to get Google Sheets client")
+            return None
+
+        logger.info(f"Attempting to open sheet with ID: {SHEET_ID}")
         sheet = client.open_by_key(SHEET_ID).sheet1
+        logger.info("Sheet opened successfully")
+        
+        logger.info("Fetching all records from sheet")
         data = sheet.get_all_records()
+        logger.info(f"Retrieved {len(data)} records from Google Sheets")
+        
         df = pd.DataFrame(data)
+        logger.info(f"Created DataFrame with shape: {df.shape}")
 
         if df.empty:
+            logger.warning("DataFrame is empty - no data to export")
             return None
 
         # Use a temporary file
         temp_dir = tempfile.gettempdir()
-        file_path = os.path.join(temp_dir, "data.xlsx")
+        file_path = os.path.join(temp_dir, "telegram_bot_data.xlsx")
+        logger.info(f"Creating Excel file at: {file_path}")
+        
         df.to_excel(file_path, index=False)
-        return file_path
+        
+        # Verify file was created
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            logger.info(f"Excel file created successfully: {file_path}, size: {file_size} bytes")
+            
+            # Additional debug: check file content
+            try:
+                test_df = pd.read_excel(file_path)
+                logger.info(f"Test read successful. File contains {len(test_df)} rows, {len(test_df.columns)} columns")
+            except Exception as test_error:
+                logger.warning(f"Test read failed but file exists: {test_error}")
+                
+            return file_path
+        else:
+            logger.error("Excel file was not created successfully")
+            return None
 
     except Exception as e:
-        logger.error(f"Error generating local Excel file: {e}")
-        return None 
-    
+        logger.error(f"Error generating local Excel file: {e}", exc_info=True)
+        return None
+
 def get_dataframe():
     """Fetch fresh dataframe directly from Google Sheets (no Excel needed)"""
-    client = get_client()
-    sheet = client.open_by_key(SHEET_ID).sheet1
+    try:
+        logger.info("Fetching DataFrame directly from Google Sheets")
+        client = get_client()
+        if not client:
+            return pd.DataFrame()
+            
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+        logger.info(f"Direct DataFrame fetch successful. Shape: {df.shape}")
+        return df
+    except Exception as e:
+        logger.error(f"Error fetching DataFrame: {e}")
+        return pd.DataFrame()
 
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
-    return df
 
 
 class AdminBot:
@@ -264,17 +301,35 @@ class AdminBot:
         command = update.message.text
 
         if command == '📊 መረጃ ለማውረድ':
-            with get_excel_file() as file_path:
-                if file_path:
+            logger.info("User requested data download")
+            file_path = sheet_to_excel_local()
+            
+            if file_path:
+                logger.info(f"Excel file created at {file_path}, attempting to send")
+                try:
                     with open(file_path, 'rb') as f:
+                        logger.info("File opened successfully, sending to Telegram")
                         await update.message.reply_document(
                             document=f,
                             filename="data.xlsx",
                             caption="📊 የተሰበሰበ መረጃ (Google Sheets)"
                         )
-                else:
-                    await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
-            # File is automatically deleted here by the context manager
+                        logger.info("File sent successfully to Telegram")
+                    
+                    # Clean up after successful send
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Temporary file {file_path} cleaned up")
+                    except Exception as e:
+                        logger.warning(f"Could not delete temp Excel file: {e}")
+                        
+                except Exception as e:
+                    logger.error(f"Error sending file to Telegram: {e}", exc_info=True)
+                    await update.message.reply_text("❌ ፋይል ለመላክ ስህተት ተፈጥሯል!")
+            else:
+                logger.warning("No Excel file was created")
+                await update.message.reply_text("❌ አሁን ምንም መረጃ አልተገኘም!")
+
             return ADMIN_MENU
 
         elif command == '❓ ጥያቄዎችን ለማሻሻል':
