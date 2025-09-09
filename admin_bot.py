@@ -35,6 +35,7 @@ ADMIN_USERS_FILE = 'admin_users.json'
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
+QUESTIONS_SHEET_NAME = "Questions"  # Name of the worksheet where questions will be stored
 
 # Path to the mounted secret file
 CREDS_FILE = "/etc/secrets/reflected-cycle-448109-p5-65cedb726569.json"
@@ -183,24 +184,42 @@ class AdminBot:
             logger.info("Questions file created with defaults")
 
     def load_questions(self):
-        """Load questions from JSON file"""
+        """Load questions directly from Google Sheets"""
         try:
-            with open(QUESTIONS_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                return data.get('questions', [])
+            client = get_client()
+            if not client:
+                logger.warning("Cannot load questions: Google Sheets client not available")
+                return []
+
+            sheet_obj = client.open_by_key(SHEET_ID).worksheet(QUESTIONS_SHEET_NAME)
+            data = sheet_obj.col_values(1)  # Assuming first column stores questions
+            if not data:
+                return []
+
+            # Remove header if present
+            if data[0].strip().lower() == "question":
+                return data[1:]
+            return data
         except Exception as e:
-            logger.error(f"Error loading questions: {e}")
+            logger.error(f"Error loading questions from Google Sheets: {e}", exc_info=True)
             return []
 
     def save_questions(self, questions):
-        """Save questions to JSON file"""
+        """Save questions directly to Google Sheets"""
         try:
-            with open(QUESTIONS_FILE, 'w', encoding='utf-8') as f:
-                json.dump({"questions": questions}, f, ensure_ascii=False, indent=4)
-            logger.info("Questions saved successfully")
+            client = get_client()
+            if not client:
+                logger.warning("Cannot save questions: Google Sheets client not available")
+                return False
+
+            sheet_obj = client.open_by_key(SHEET_ID).worksheet(QUESTIONS_SHEET_NAME)
+            # Prepare data with header
+            data = [["Question"]] + [[q] for q in questions]
+            sheet_obj.update(f"A1:A{len(data)}", data)
+            logger.info("Questions saved to Google Sheets successfully")
             return True
         except Exception as e:
-            logger.error(f"Error saving questions: {e}")
+            logger.error(f"Error saving questions to Google Sheets: {e}", exc_info=True)
             return False
 
     def load_admin_users(self):

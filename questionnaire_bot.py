@@ -15,6 +15,28 @@ from datetime import datetime
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SHEET_ID = "1HfK7_BYyewklYn32m82qteGgByzTTxA6_fovaDYdl74"
 CREDS_FILE = "/etc/secrets/reflected-cycle-448109-p5-65cedb726569.json"
+QUESTIONS_SHEET_NAME = "Questions"  # Name of the sheet with your questions
+
+def load_questions_from_sheet():
+    """Load questions directly from Google Sheets"""
+    try:
+        client = get_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(QUESTIONS_SHEET_NAME)
+        data = sheet.col_values(1)  # Assuming column A has all questions
+
+        if not data:
+            logger.warning("No questions found in Google Sheet")
+            return []
+
+        # Remove header if present
+        if data[0].strip().lower() == "question":
+            return data[1:]
+
+        return data
+
+    except Exception as e:
+        logger.error(f"Error loading questions from Google Sheets: {e}", exc_info=True)
+        return []
 
 def get_client():
     """Authorize Google Sheets client from secret file"""
@@ -37,7 +59,7 @@ def append_to_sheet(user_id, user_data, ratings):
 
     if not first_row or first_row[0] != "UserID":
         # Reset headers at row 1
-        questions = load_questions_from_file()
+        questions = load_questions_from_sheet()
         headers = ["UserID", "Name", "Phone", "Timestamp"] + [f"Q{i+1}" for i in range(len(questions))]
 
         if first_row:
@@ -225,7 +247,7 @@ class QuestionnaireBot:
         context.user_data['ratings'] = []
         context.user_data['current_question'] = 0
 
-        questions = self.load_questions()
+        questions = load_questions_from_sheet()
         if not questions:
             await update.message.reply_text("❌ ምንም ጥያቄዎች አልተገኙም።")
             logger.error("No questions found in questions.json")
@@ -236,8 +258,10 @@ class QuestionnaireBot:
             resize_keyboard=True
         )
 
+        instruction_text = "\n\n👇 እባክዎ ከታች ያሉትን ኢሞጂዎች በመጠቀም ደረጃ ይስጡ።"
+
         await update.message.reply_text(
-            f"✨ <b>Q1:</b> {questions[0]}",
+            f"✨ <b>Q1:</b> {questions[0]}{instruction_text}",
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
@@ -246,7 +270,7 @@ class QuestionnaireBot:
 
     async def handle_rating(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         rating_text = update.message.text.strip()
-        questions = self.load_questions()
+        questions = load_questions_from_sheet()
         current_q = context.user_data['current_question']
         logger.debug(f"Received rating input: {rating_text}")
 
